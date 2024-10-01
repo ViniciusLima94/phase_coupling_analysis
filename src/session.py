@@ -10,7 +10,7 @@ from .io import set_paths, read_mat
 from tqdm import tqdm
 
 from frites.dataset import DatasetEphy
-from GDa.util import filter_trial_indexes
+from src.util import filter_trial_indexes
 
 
 class session_info():
