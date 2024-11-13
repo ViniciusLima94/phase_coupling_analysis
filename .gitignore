@@ -1,5 +1,5 @@
 *.Rhistory
-*.ipynb
+#*.ipynb
 *.gml
 *.mp4
 *.sh
