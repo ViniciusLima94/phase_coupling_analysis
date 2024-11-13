@@ -21,12 +21,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument("SIDX", help="index of the session to be run", type=int)
 parser.add_argument("ALIGN", help="wheter to align data to cue or match", type=str)
 parser.add_argument("MONKEY", help="which monkey to use", type=str)
+parser.add_argument("SURR", help="whether to run for surrogates", type=int)
 args = parser.parse_args()
 
 # Index of the session to be load
 idx = args.SIDX
 at = args.ALIGN
 monkey = args.MONKEY
+surrogate = bool(args.SURR)
 
 session = get_dates(monkey)[idx]
 print(session)
@@ -41,27 +43,61 @@ _SAVE = os.path.expanduser("~/funcog/phaseanalysis")
 
 data = load_session_data(session, monkey, at)
 
-channels = ["a8M_17", "a1_103", "a7B_121", "a2_125", "a5_172", "a7A_181", "a7B_121", "a5_172"]
+# channels = ["a8M_17", "a1_103", "a7B_121", "a2_125", "a5_172",
+            # "a7A_181", "a7B_121", "a5_172"]
 
-idx = [roi in channels for roi in data.roi]
+# idx = [roi in channels for roi in data.roi]
 
-data = data.isel(roi=idx)
+# data = data.isel(roi=idx)
+
+# Shuffle data if needed
+if surrogate:
+
+    n_boot = 1000 * data.sizes["trials"]
+
+    channel_pairs = np.random.choice(range(data.sizes["roi"]), size=(n_boot, 2))
+    trial_pairs = np.random.choice(range(data.sizes["trials"]), size=(n_boot, 2))
+    shuffled = np.concatenate((channel_pairs, trial_pairs), axis=1)
+
+    data_surr = []
+    for i, j, ti, tj in tqdm(shuffled):
+        temp = xr.concat(
+            (
+                data.isel(trials=ti, roi=i).drop_vars("trials").drop_vars("roi"),
+                data.isel(trials=tj, roi=j).drop_vars("trials").drop_vars("roi"),
+            ),
+            "roi",
+        )
+        data_surr += [
+            temp
+        ]
+
+    data = xr.concat(data_surr, "trials").transpose("trials", "roi", "time")
+
+    data.attrs["t_match_on"] = np.array([data.attrs["t_match_on"].mean()]*n_boot)  #np.random.choice(data.attrs["t_match_on"], size=n_boot)
+    data.attrs["t_cue_on"] = np.array([data.attrs["t_cue_on"].mean()]*n_boot) #np.random.choice(data.attrs["t_cue_on"], size=n_boot)
+
+    del data_surr
+
 
 ###########################################################################
 # Filter data
 ###########################################################################
 
-f_low = np.arange(0, 80, 10, dtype=np.int_)
-f_high = f_low + 10
+# f_low = np.arange(0, 80, 10, dtype=np.int_)
+# f_high = f_low + 10
 
-bands = np.c_[f_low, f_high]
+# bands = np.c_[f_low, f_high]
+# freqs = bands.mean(axis=1).astype(int)
+
+bands = np.array([[0, 10], [5, 15]])
 freqs = bands.mean(axis=1).astype(int)
 
 temp = []
 
 for f_l, f_h in bands:
 
-    temp += [filter_data(data.values, data.fsample, f_l, f_h, n_jobs=20, verbose=False)]
+    temp += [filter_data(data.values, data.fsample, f_l, f_h, n_jobs=10, verbose=False)]
 
 
 data = xr.DataArray(
@@ -82,18 +118,12 @@ power, phase, phase_diff = [], [], []
 power, phase, phase_diff = hilbert_decomposition(
     data,
     sfreq=data.fsample,
-    decim=None,
+    decim=5,
     times="times",
     roi="roi",
     n_jobs=10,
     verbose=None,
 )
-
-# power += [out[0]]
-# phase += [out[1]]
-# phase_diff += [out[2]]
-
-# del out
 
 power = power.transpose(*_dims)
 phase = phase.transpose(*_dims)
@@ -125,6 +155,10 @@ def create_epoched_data(data):
 
         for t_i, t_f in stages:
             temp += [data[i].sel(times=slice(t_i, t_f)).values]
+
+
+        # for _temp in temp:
+            # print(_temp.shape)
 
         epoch_data += [np.stack(temp, axis=-3)]
 
@@ -159,15 +193,14 @@ results_path = os.path.join(_SAVE, "Results", monkey, session)
 if not os.path.exists(results_path):
     os.makedirs(results_path)
 
-file_name = f"power_time_series.nc"
+file_name = f"power_time_series_surr_{surrogate}.nc"
 path_pow = os.path.join(results_path, file_name)
 power.to_netcdf(path_pow)
 
-file_name = f"phase_time_series.nc"
+file_name = f"phase_time_series_surr_{surrogate}.nc"
 path_pow = os.path.join(results_path, file_name)
 phase.to_netcdf(path_pow)
 
-file_name = f"phase_difference_time_series.nc"
+file_name = f"phase_difference_time_series_surr_{surrogate}.nc"
 path_pow = os.path.join(results_path, file_name)
 phase_diff.to_netcdf(path_pow)
-
