@@ -53,24 +53,28 @@ data = load_session_data(session, monkey, at)
 # Shuffle data if needed
 if surrogate:
 
-    n_boot = 1000 * data.sizes["trials"]
+    # n_boot = 1000 * data.sizes["trials"]
 
-    channel_pairs = np.random.choice(range(data.sizes["roi"]), size=(n_boot, 2))
-    trial_pairs = np.random.choice(range(data.sizes["trials"]), size=(n_boot, 2))
-    shuffled = np.concatenate((channel_pairs, trial_pairs), axis=1)
+    # channel_pairs = np.random.choice(range(data.sizes["roi"]), size=(n_boot, 2))
+    # trial_pairs = np.random.choice(range(data.sizes["trials"]), size=(n_boot, 2))
+    # shuffled = np.concatenate((channel_pairs, trial_pairs), axis=1)
 
     data_surr = []
-    for i, j, ti, tj in tqdm(shuffled):
-        temp = xr.concat(
-            (
-                data.isel(trials=ti, roi=i).drop_vars("trials").drop_vars("roi"),
-                data.isel(trials=tj, roi=j).drop_vars("trials").drop_vars("roi"),
-            ),
-            "roi",
-        )
-        data_surr += [
-            temp
-        ]
+   
+    for i in range(10):
+        data_surr += [ trial_swap_surrogates(data, seed=0, verbose=False) ]
+
+    # for i, j, ti, tj in tqdm(shuffled):
+        # temp = xr.concat(
+            # (
+                # data.isel(trials=ti, roi=i).drop_vars("trials").drop_vars("roi"),
+                # data.isel(trials=tj, roi=j).drop_vars("trials").drop_vars("roi"),
+            # ),
+            # "roi",
+        # )
+        # data_surr += [
+            # temp
+        # ]
 
     data = xr.concat(data_surr, "trials").transpose("trials", "roi", "time")
 
@@ -90,7 +94,7 @@ if surrogate:
 # bands = np.c_[f_low, f_high]
 # freqs = bands.mean(axis=1).astype(int)
 
-bands = np.array([[0, 10], [5, 15]])
+bands = np.array([[0, 10], [5, 15] ])
 freqs = bands.mean(axis=1).astype(int)
 
 temp = []
@@ -135,53 +139,53 @@ phase_diff = phase_diff.transpose(*_dims)
 ###########################################################################
 
 
-def create_epoched_data(data):
+# def create_epoched_data(data):
 
-    t_match_on = (data.attrs["t_match_on"] - data.attrs["t_cue_on"]) / data.fsample
-    t_match_on = np.round(t_match_on, 1)
+    # t_match_on = (data.attrs["t_match_on"] - data.attrs["t_cue_on"]) / data.fsample
+    # t_match_on = np.round(t_match_on, 1)
 
-    epoch_data = []
+    # epoch_data = []
 
-    for i in range(data.sizes["trials"]):
-        stages = [
-            [-0.4, 0.0],
-            [0, 0.4],
-            [0.5, 0.9],
-            [0.9, 1.3],
-            [t_match_on[i] - 0.4, t_match_on[i]],
-        ]
+    # for i in range(data.sizes["trials"]):
+        # stages = [
+            # [-0.4, 0.0],
+            # [0, 0.4],
+            # [0.5, 0.9],
+            # [0.9, 1.3],
+            # [t_match_on[i] - 0.4, t_match_on[i]],
+        # ]
 
-        temp = []
+        # temp = []
 
-        for t_i, t_f in stages:
-            temp += [data[i].sel(times=slice(t_i, t_f)).values]
+        # for t_i, t_f in stages:
+            # temp += [data[i].sel(times=slice(t_i, t_f)).values]
 
 
-        # for _temp in temp:
-            # print(_temp.shape)
+        # # for _temp in temp:
+            # # print(_temp.shape)
 
-        epoch_data += [np.stack(temp, axis=-3)]
+        # epoch_data += [np.stack(temp, axis=-3)]
 
-    _dims = ("trials", "roi", "epochs", "freqs", "times")
+    # _dims = ("trials", "roi", "epochs", "freqs", "times")
 
-    epoch_data = xr.DataArray(
-        np.stack(epoch_data),
-        dims=_dims,
-        coords={
-            "trials": data.trials,
-            "roi": data.roi,
-            "freqs": freqs,
-        },
-        attrs=data.attrs,
-    )
+    # epoch_data = xr.DataArray(
+        # np.stack(epoch_data),
+        # dims=_dims,
+        # coords={
+            # "trials": data.trials,
+            # "roi": data.roi,
+            # "freqs": freqs,
+        # },
+        # attrs=data.attrs,
+    # )
 
-    stim_labels = data.attrs["stim"]
+    # stim_labels = data.attrs["stim"]
 
-    return epoch_data
+    # return epoch_data
 
-power = create_epoched_data(power)
-phase = create_epoched_data(phase)
-phase_diff = create_epoched_data(phase_diff)
+# power = create_epoched_data(power)
+# phase = create_epoched_data(phase)
+# phase_diff = create_epoched_data(phase_diff)
 
 ###########################################################################
 # Saves file
