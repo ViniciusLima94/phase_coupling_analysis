@@ -3,15 +3,12 @@ import argparse
 import numpy as np
 import xarray as xr
 
-from src.session import session
 from src.metrics.phase import hilbert_decomposition
-from tqdm import tqdm
 from src.util import get_dates
-from src.metrics.spectral import xr_psd_array_multitaper
 from util import load_session_data
 from mne.filter import filter_data
-from src.signal.surrogates import trial_swap_surrogates
-import scipy
+
+# from src.signal.surrogates import trial_swap_surrogates
 
 ###############################################################################
 # Argument parsing
@@ -30,8 +27,8 @@ at = args.ALIGN
 monkey = args.MONKEY
 surrogate = bool(args.SURR)
 
-session = get_dates(monkey)[idx]
-print(session)
+session_number = get_dates(monkey)[idx]
+print(session_number)
 
 # Root directory
 _ROOT = os.path.expanduser("~/funcog/gda")
@@ -41,47 +38,49 @@ _SAVE = os.path.expanduser("~/funcog/phaseanalysis")
 # Loading session
 ###########################################################################
 
-data = load_session_data(session, monkey, at)
+data = load_session_data(session_number, monkey, at)
 
 # channels = ["a8M_17", "a1_103", "a7B_121", "a2_125", "a5_172",
-            # "a7A_181", "a7B_121", "a5_172"]
+# "a7A_181", "a7B_121", "a5_172"]
 
 # idx = [roi in channels for roi in data.roi]
 
 # data = data.isel(roi=idx)
 
 # Shuffle data if needed
-if surrogate:
+# if surrogate:
 
-    # n_boot = 1000 * data.sizes["trials"]
+# channel_pairs = np.random.choice(range(data.sizes["roi"]), size=(n_boot, 2))
+# trial_pairs = np.random.choice(range(data.sizes["trials"]), size=(n_boot, 2))
+# shuffled = np.concatenate((channel_pairs, trial_pairs), axis=1)
 
-    # channel_pairs = np.random.choice(range(data.sizes["roi"]), size=(n_boot, 2))
-    # trial_pairs = np.random.choice(range(data.sizes["trials"]), size=(n_boot, 2))
-    # shuffled = np.concatenate((channel_pairs, trial_pairs), axis=1)
+#    data_surr = []
+#
+#    for i in range(10):
+#        data_surr += [trial_swap_surrogates(data, seed=0, verbose=False)]
 
-    data_surr = []
-   
-    for i in range(10):
-        data_surr += [ trial_swap_surrogates(data, seed=0, verbose=False) ]
+# for i, j, ti, tj in tqdm(shuffled):
+# temp = xr.concat(
+# (
+# data.isel(trials=ti, roi=i).drop_vars("trials").drop_vars("roi"),
+# data.isel(trials=tj, roi=j).drop_vars("trials").drop_vars("roi"),
+# ),
+# "roi",
+# )
+# data_surr += [
+# temp
+# ]
 
-    # for i, j, ti, tj in tqdm(shuffled):
-        # temp = xr.concat(
-            # (
-                # data.isel(trials=ti, roi=i).drop_vars("trials").drop_vars("roi"),
-                # data.isel(trials=tj, roi=j).drop_vars("trials").drop_vars("roi"),
-            # ),
-            # "roi",
-        # )
-        # data_surr += [
-            # temp
-        # ]
-
-    data = xr.concat(data_surr, "trials").transpose("trials", "roi", "time")
-
-    data.attrs["t_match_on"] = np.array([data.attrs["t_match_on"].mean()]*n_boot)  #np.random.choice(data.attrs["t_match_on"], size=n_boot)
-    data.attrs["t_cue_on"] = np.array([data.attrs["t_cue_on"].mean()]*n_boot) #np.random.choice(data.attrs["t_cue_on"], size=n_boot)
-
-    del data_surr
+#    data = xr.concat(data_surr, "trials").transpose("trials", "roi", "time")
+#
+#    data.attrs["t_match_on"] = np.array(
+#        [data.attrs["t_match_on"].mean()] * n_boot
+#    )  # np.random.choice(data.attrs["t_match_on"], size=n_boot)
+#    data.attrs["t_cue_on"] = np.array(
+#        [data.attrs["t_cue_on"].mean()] * n_boot
+#    )  # np.random.choice(data.attrs["t_cue_on"], size=n_boot)
+#
+#    del data_surr
 
 
 ###########################################################################
@@ -94,7 +93,7 @@ if surrogate:
 # bands = np.c_[f_low, f_high]
 # freqs = bands.mean(axis=1).astype(int)
 
-bands = np.array([[0, 10], [5, 15] ])
+bands = np.array([[0, 10], [5, 15], [10, 20], [15, 25]])
 freqs = bands.mean(axis=1).astype(int)
 
 temp = []
@@ -107,7 +106,12 @@ for f_l, f_h in bands:
 data = xr.DataArray(
     np.stack(temp, axis=2),
     dims=("trials", "roi", "freqs", "times"),
-    coords={"trials": data.trials, "roi": data.roi, "freqs": freqs, "times": data.time.values},
+    coords={
+        "trials": data.trials,
+        "roi": data.roi,
+        "freqs": freqs,
+        "times": data.time.values,
+    },
     attrs=data.attrs,
 )
 
@@ -141,47 +145,47 @@ phase_diff = phase_diff.transpose(*_dims)
 
 # def create_epoched_data(data):
 
-    # t_match_on = (data.attrs["t_match_on"] - data.attrs["t_cue_on"]) / data.fsample
-    # t_match_on = np.round(t_match_on, 1)
+# t_match_on = (data.attrs["t_match_on"] - data.attrs["t_cue_on"]) / data.fsample
+# t_match_on = np.round(t_match_on, 1)
 
-    # epoch_data = []
+# epoch_data = []
 
-    # for i in range(data.sizes["trials"]):
-        # stages = [
-            # [-0.4, 0.0],
-            # [0, 0.4],
-            # [0.5, 0.9],
-            # [0.9, 1.3],
-            # [t_match_on[i] - 0.4, t_match_on[i]],
-        # ]
+# for i in range(data.sizes["trials"]):
+# stages = [
+# [-0.4, 0.0],
+# [0, 0.4],
+# [0.5, 0.9],
+# [0.9, 1.3],
+# [t_match_on[i] - 0.4, t_match_on[i]],
+# ]
 
-        # temp = []
+# temp = []
 
-        # for t_i, t_f in stages:
-            # temp += [data[i].sel(times=slice(t_i, t_f)).values]
+# for t_i, t_f in stages:
+# temp += [data[i].sel(times=slice(t_i, t_f)).values]
 
 
-        # # for _temp in temp:
-            # # print(_temp.shape)
+# # for _temp in temp:
+# # print(_temp.shape)
 
-        # epoch_data += [np.stack(temp, axis=-3)]
+# epoch_data += [np.stack(temp, axis=-3)]
 
-    # _dims = ("trials", "roi", "epochs", "freqs", "times")
+# _dims = ("trials", "roi", "epochs", "freqs", "times")
 
-    # epoch_data = xr.DataArray(
-        # np.stack(epoch_data),
-        # dims=_dims,
-        # coords={
-            # "trials": data.trials,
-            # "roi": data.roi,
-            # "freqs": freqs,
-        # },
-        # attrs=data.attrs,
-    # )
+# epoch_data = xr.DataArray(
+# np.stack(epoch_data),
+# dims=_dims,
+# coords={
+# "trials": data.trials,
+# "roi": data.roi,
+# "freqs": freqs,
+# },
+# attrs=data.attrs,
+# )
 
-    # stim_labels = data.attrs["stim"]
+# stim_labels = data.attrs["stim"]
 
-    # return epoch_data
+# return epoch_data
 
 # power = create_epoched_data(power)
 # phase = create_epoched_data(phase)
@@ -192,7 +196,7 @@ phase_diff = phase_diff.transpose(*_dims)
 ###########################################################################
 
 # Path in which to save coherence data
-results_path = os.path.join(_SAVE, "Results", monkey, session)
+results_path = os.path.join(_SAVE, "Results", monkey, session_number)
 
 if not os.path.exists(results_path):
     os.makedirs(results_path)
