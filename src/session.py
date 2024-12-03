@@ -16,7 +16,6 @@ from .config import _COORDS_PATH
 
 
 class session_info:
-
     def __init__(self, raw_path="GrayLab/", monkey="lucy", date="150128", session=1):
         """
         The session_info class stores recording and trial info
@@ -79,7 +78,6 @@ class session_info:
 
 
 class session(session_info):
-
     def __init__(
         self,
         raw_path="GrayLab/",
@@ -243,6 +241,9 @@ class session(session_info):
         labels = self.recording_info["channel_numbers"][indch]
         # Area names for selected channels
         area = self.recording_info["area"][indch]
+        # Depth
+        depth = self.recording_info["depth"][indch]
+
         area = np.array(area, dtype="<U13")
 
         # If unique recordings remove redundant channels

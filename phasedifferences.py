@@ -32,13 +32,15 @@ print(session_number)
 
 # Root directory
 _ROOT = os.path.expanduser("~/funcog/gda")
-_SAVE = os.path.expanduser("~/funcog/phaseanalysis")
+_SAVE = os.path.expanduser("~/Documents/phaseanalysis")
 
 ###########################################################################
 # Loading session
 ###########################################################################
 
 data = load_session_data(session_number, monkey, at)
+
+print(data.shape)
 
 # channels = ["a8M_17", "a1_103", "a7B_121", "a2_125", "a5_172",
 # "a7A_181", "a7B_121", "a5_172"]
@@ -93,7 +95,8 @@ data = load_session_data(session_number, monkey, at)
 # bands = np.c_[f_low, f_high]
 # freqs = bands.mean(axis=1).astype(int)
 
-bands = np.array([[0, 10], [5, 15], [10, 20], [15, 25]])
+# bands = np.array([[0, 10], [5, 15], [10, 20], [15, 25]])
+bands = np.array([[0, 10], [5, 15]])
 freqs = bands.mean(axis=1).astype(int)
 
 temp = []

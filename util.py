@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import xarray as xr
-from src.util import node_xr_remove_sca
 from src.session import session
 
 
@@ -20,6 +19,12 @@ def load_session_data(sid, monkey, align):
 
     # Read data from .mat files
     ses.read_from_mat()
+    print(ses.data.shape)
+
+    # Load XYZ coordinates
+    coords = np.concatenate(
+        (ses.get_xy_coords(), ses.recording_info["depth"][:, None]), axis=1
+    )
 
     # Filtering by trials
     data_task = ses.filter_trials(trial_type=[1], behavioral_response=[1])
@@ -40,6 +45,9 @@ def load_session_data(sid, monkey, align):
     data.attrs["t_cue_on"] = t_cue_on
     data.attrs["t_cue_off"] = t_cue_off
     data.attrs["t_match_on"] = t_match_on
+    data.attrs["x"] = coords[:, 0]
+    data.attrs["y"] = coords[:, 1]
+    data.attrs["z"] = coords[:, 2]
 
     # ROIs with channels
     rois = [
@@ -49,7 +57,9 @@ def load_session_data(sid, monkey, align):
     # data.attrs = attrs
     data.values *= 1e6
 
-    return node_xr_remove_sca(data)
+    # return node_xr_remove_sca(data)
+    return data
+
 
 def z_score(x, dim=-1):
     return (x - x.mean(dim)[:, None]) / x.std(dim)[:, None]

@@ -3,7 +3,7 @@ import xarray as xr
 import scipy
 
 from frites.conn import conn_io
-from frites.io import check_attrs, logger, set_log_level
+from frites.io import logger
 from frites.utils import parallel_func
 
 
@@ -44,15 +44,15 @@ def hilbert_decomposition(
         win_sample=None,
         sfreq=sfreq,
         verbose=verbose,
-        name=f"Hilbert Decomposition",
+        name="Hilbert Decomposition",
         kw_links=kw_links,
     )
 
     # Extract variables
     x, trials, attrs = data.data, data["y"].data, cfg["attrs"]
-    times, n_trials = data["times"].data, len(trials)
+    times = data["times"].data
     x_s, x_t, roi_p, roi = cfg["x_s"], cfg["x_t"], cfg["roi_p"], data["roi"].data
-    indices, sfreq = cfg["blocks"], cfg["sfreq"]
+    sfreq = cfg["blocks"], cfg["sfreq"]
     n_pairs, f_vec = len(x_s), data.freqs.values
 
     if isinstance(decim, int):
@@ -74,9 +74,7 @@ def hilbert_decomposition(
 
     # Compute phase-differences in parellel
     # show info
-    logger.info(
-        f"Computing pairwise phase difference (n_pairs={n_pairs})"
-    )
+    logger.info(f"Computing pairwise phase difference (n_pairs={n_pairs})")
     kw_para = dict(n_jobs=n_jobs, verbose=verbose, total=n_pairs)
     delta_phase = np.stack(_phase_diff(phase, x_s, x_t, kw_para), axis=1)
 
