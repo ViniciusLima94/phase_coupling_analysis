@@ -3,12 +3,10 @@ import argparse
 import numpy as np
 import xarray as xr
 
-from src.session import session
-from tqdm import tqdm
+# from src.session import session
 from src.util import get_dates
 from src.metrics.spectral import xr_psd_array_multitaper
 from util import load_session_data
-import scipy
 
 ###############################################################################
 # Argument parsing
@@ -80,9 +78,13 @@ for i in range(epoch_data.sizes["epochs"]):
     sxx_stim = []
     for stim in np.unique(stim_labels):
         sxx_stim += [
-            xr_psd_array_multitaper(epoch_data.sel(epochs=i).isel(trials=stim_labels==stim), n_jobs=20, bandwidth=5)
+            xr_psd_array_multitaper(
+                epoch_data.sel(epochs=i).isel(trials=stim_labels == stim),
+                n_jobs=20,
+                bandwidth=5,
+            )
         ]
-    sxx += [ xr.concat(sxx_stim, "stim") ]
+    sxx += [xr.concat(sxx_stim, "stim")]
 
 sxx = xr.concat(sxx, "epochs")
 sxx.attrs = epoch_data.attrs
@@ -97,6 +99,6 @@ results_path = os.path.join(_SAVE, "Results", monkey, session)
 if not os.path.exists(results_path):
     os.makedirs(results_path)
 
-file_name = f"average_power.nc"
+file_name = "average_power.nc"
 path_pow = os.path.join(results_path, file_name)
 sxx.to_netcdf(path_pow)

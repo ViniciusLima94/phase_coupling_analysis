@@ -8,8 +8,8 @@ from mne.filter import filter_data
 from mne.time_frequency import psd_array_multitaper
 
 
-def xr_psd_array_multitaper(data, bandwidth=1., n_jobs=1, fmin=0.1, fmax=80):
-    trials, roi, time = data.trials.values, data.roi.values, data.time.values
+def xr_psd_array_multitaper(data, bandwidth=1.0, n_jobs=1, fmin=0.1, fmax=80):
+    _, roi, _ = data.trials.values, data.roi.values, data.time.values
 
     psds_c, freqs, _ = psd_array_multitaper(
         data,
@@ -83,15 +83,15 @@ def conn_spec_average(
         sm_times=None,
         sm_freqs=None,
         verbose=verbose,
-        name=f"Spectral connectivity (metric = coh)",
+        name="Spectral connectivity (metric = coh)",
         kw_links=kw_links,
     )
 
     # extract variables
     x, trials, attrs = data.data, data["y"].data, cfg["attrs"]
-    times, n_trials = data["times"].data, len(trials)
+    times, _ = data["times"].data, len(trials)
     x_s, x_t, roi_p = cfg["x_s"], cfg["x_t"], cfg["roi_p"]
-    indices, sfreq = cfg["blocks"], cfg["sfreq"]
+    _, sfreq = cfg["blocks"], cfg["sfreq"]
     n_pairs = len(x_s)
 
     kw_para = dict(n_jobs=n_jobs, verbose=verbose, total=n_pairs)
@@ -100,7 +100,7 @@ def conn_spec_average(
     times = times[::decim]
 
     # define arguments for parallel computing
-    mesg = f"Estimating pairwise coh for trials %s"
+    # mesg = "Estimating pairwise coh for trials %s"
     kw_para = dict(n_jobs=n_jobs, verbose=verbose, total=n_pairs)
 
     # show info
@@ -242,15 +242,15 @@ def hilbert_decomposition(
         win_sample=None,
         sfreq=sfreq,
         verbose=verbose,
-        name=f"Hilbert Decomposition",
+        name="Hilbert Decomposition",
         kw_links=kw_links,
     )
 
     # Extract variables
     x, trials, attrs = data.data, data["y"].data, cfg["attrs"]
-    times, n_trials = data["times"].data, len(trials)
+    times, _ = data["times"].data, len(trials)
     x_s, x_t, roi_p, roi = cfg["x_s"], cfg["x_t"], cfg["roi_p"], data["roi"].data
-    indices, sfreq = cfg["blocks"], cfg["sfreq"]
+    _, sfreq = cfg["blocks"], cfg["sfreq"]
     n_pairs, f_vec, n_freqs = len(x_s), np.mean(bands, axis=1), len(bands)
     # If no bands are passed use broadband signal
 
@@ -299,4 +299,4 @@ def hilbert_decomposition(
         delta_phase, dims=_dims, coords=_coord_links, attrs=attrs, name="phase_diff"
     )
 
-    return power, phase, delta_phase
+    return power.astype(dtype), phase.astype(dtype), delta_phase.astype(dtype)

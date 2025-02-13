@@ -7,6 +7,7 @@ from src.metrics.phase import hilbert_decomposition
 from src.util import get_dates
 from util import load_session_data
 from mne.filter import filter_data
+from config import bands, freqs
 
 # from src.signal.surrogates import trial_swap_surrogates
 
@@ -18,6 +19,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("SIDX", help="index of the session to be run", type=int)
 parser.add_argument("ALIGN", help="wheter to align data to cue or match", type=str)
 parser.add_argument("MONKEY", help="which monkey to use", type=str)
+parser.add_argument("BAND", help="which band to use", type=int)
 parser.add_argument("SURR", help="whether to run for surrogates", type=int)
 args = parser.parse_args()
 
@@ -25,6 +27,7 @@ args = parser.parse_args()
 idx = args.SIDX
 at = args.ALIGN
 monkey = args.MONKEY
+band_id = args.BAND
 surrogate = bool(args.SURR)
 
 session_number = get_dates(monkey)[idx]
@@ -32,7 +35,7 @@ print(session_number)
 
 # Root directory
 _ROOT = os.path.expanduser("~/funcog/gda")
-_SAVE = os.path.expanduser("~/Documents/phaseanalysis")
+_SAVE = os.path.expanduser("~/funcog/phaseanalysis")
 
 ###########################################################################
 # Loading session
@@ -42,12 +45,23 @@ data = load_session_data(session_number, monkey, at)
 
 print(data.shape)
 
-# channels = ["a8M_17", "a1_103", "a7B_121", "a2_125", "a5_172",
-# "a7A_181", "a7B_121", "a5_172"]
 
-# idx = [roi in channels for roi in data.roi]
+def shuffle_along_axis(a, axis):
+    idx = np.random.rand(*a.shape).argsort(axis=axis)
+    return np.take_along_axis(a, idx, axis=axis)
 
-# data = data.isel(roi=idx)
+
+# Shuffle data if needed
+if surrogate:
+    attrs = data.attrs
+    data_surr = data.values.copy()
+    data_surr = shuffle_along_axis(data_surr, 0)
+    data = xr.DataArray(data_surr, dims=data.dims, coords=data.coords).drop_vars(
+        "trials"
+    )
+    data.attrs = attrs
+    del data_surr
+
 
 # Shuffle data if needed
 # if surrogate:
@@ -89,30 +103,23 @@ print(data.shape)
 # Filter data
 ###########################################################################
 
-# f_low = np.arange(0, 80, 10, dtype=np.int_)
-# f_high = f_low + 10
-
-# bands = np.c_[f_low, f_high]
-# freqs = bands.mean(axis=1).astype(int)
-
-# bands = np.array([[0, 10], [5, 15], [10, 20], [15, 25]])
-bands = np.array([[0, 10], [5, 15]])
-freqs = bands.mean(axis=1).astype(int)
+f_l, f_h = bands[band_id]
 
 temp = []
 
-for f_l, f_h in bands:
-
-    temp += [filter_data(data.values, data.fsample, f_l, f_h, n_jobs=10, verbose=False)]
-
+temp = filter_data(data.values, data.fsample, f_l, f_h, n_jobs=10, verbose=False)
+temp = np.expand_dims(temp, 2)
+print(temp.shape)
+print(freqs)
 
 data = xr.DataArray(
-    np.stack(temp, axis=2),
+    temp,
+    # np.stack(temp, axis=2),
     dims=("trials", "roi", "freqs", "times"),
     coords={
         "trials": data.trials,
         "roi": data.roi,
-        "freqs": freqs,
+        "freqs": freqs[band_id],
         "times": data.time.values,
     },
     attrs=data.attrs,
@@ -129,7 +136,7 @@ power, phase, phase_diff = [], [], []
 power, phase, phase_diff = hilbert_decomposition(
     data,
     sfreq=data.fsample,
-    decim=5,
+    decim=1,
     times="times",
     roi="roi",
     n_jobs=10,
@@ -142,59 +149,6 @@ phase_diff = phase_diff.transpose(*_dims)
 
 
 ###########################################################################
-# Create epoched data
-###########################################################################
-
-
-# def create_epoched_data(data):
-
-# t_match_on = (data.attrs["t_match_on"] - data.attrs["t_cue_on"]) / data.fsample
-# t_match_on = np.round(t_match_on, 1)
-
-# epoch_data = []
-
-# for i in range(data.sizes["trials"]):
-# stages = [
-# [-0.4, 0.0],
-# [0, 0.4],
-# [0.5, 0.9],
-# [0.9, 1.3],
-# [t_match_on[i] - 0.4, t_match_on[i]],
-# ]
-
-# temp = []
-
-# for t_i, t_f in stages:
-# temp += [data[i].sel(times=slice(t_i, t_f)).values]
-
-
-# # for _temp in temp:
-# # print(_temp.shape)
-
-# epoch_data += [np.stack(temp, axis=-3)]
-
-# _dims = ("trials", "roi", "epochs", "freqs", "times")
-
-# epoch_data = xr.DataArray(
-# np.stack(epoch_data),
-# dims=_dims,
-# coords={
-# "trials": data.trials,
-# "roi": data.roi,
-# "freqs": freqs,
-# },
-# attrs=data.attrs,
-# )
-
-# stim_labels = data.attrs["stim"]
-
-# return epoch_data
-
-# power = create_epoched_data(power)
-# phase = create_epoched_data(phase)
-# phase_diff = create_epoched_data(phase_diff)
-
-###########################################################################
 # Saves file
 ###########################################################################
 
@@ -204,14 +158,14 @@ results_path = os.path.join(_SAVE, "Results", monkey, session_number)
 if not os.path.exists(results_path):
     os.makedirs(results_path)
 
-file_name = f"power_time_series_surr_{surrogate}.nc"
+file_name = f"power_time_series_band_{band_id}_surr_{surrogate}.nc"
 path_pow = os.path.join(results_path, file_name)
 power.to_netcdf(path_pow)
 
-file_name = f"phase_time_series_surr_{surrogate}.nc"
+file_name = f"phase_time_series_band_{band_id}_surr_{surrogate}.nc"
 path_pow = os.path.join(results_path, file_name)
 phase.to_netcdf(path_pow)
 
-file_name = f"phase_difference_time_series_surr_{surrogate}.nc"
+file_name = f"phase_difference_time_series_band_{band_id}_surr_{surrogate}.nc"
 path_pow = os.path.join(results_path, file_name)
 phase_diff.to_netcdf(path_pow)

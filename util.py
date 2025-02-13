@@ -14,7 +14,7 @@ def load_session_data(sid, monkey, align):
         slvr_msmod=False,
         only_unique_recordings=False,
         align_to=align,
-        evt_dt=[-0.65, 2],
+        evt_dt=[-0.65, 2.],
     )
 
     # Read data from .mat files

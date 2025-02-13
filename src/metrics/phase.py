@@ -54,6 +54,7 @@ def hilbert_decomposition(
     x_s, x_t, roi_p, roi = cfg["x_s"], cfg["x_t"], cfg["roi_p"], data["roi"].data
     sfreq = cfg["blocks"], cfg["sfreq"]
     n_pairs, f_vec = len(x_s), data.freqs.values
+    f_vec = np.atleast_1d(f_vec)
 
     if isinstance(decim, int):
         times = times[::decim]
@@ -81,12 +82,13 @@ def hilbert_decomposition(
     # Wrapp to xrray
     power = xr.DataArray(
         power, dims=_dims, coords=_coord_nodes, attrs=attrs, name="power"
-    )
+    ).astype(dtype)
     phase = xr.DataArray(
         phase, dims=_dims, coords=_coord_nodes, attrs=attrs, name="phase"
-    )
+    ).astype(dtype)
+
     delta_phase = xr.DataArray(
         delta_phase, dims=_dims, coords=_coord_links, attrs=attrs, name="phase_diff"
-    )
+    ).astype(dtype)
 
     return power, phase, delta_phase

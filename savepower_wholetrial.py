@@ -25,7 +25,7 @@ print(sid)
 
 # Root directory
 _ROOT = os.path.expanduser("~/funcog/gda")
-_SAVE = os.path.expanduser("~/Documents/phaseanalysis")
+_SAVE = os.path.expanduser("~/funcog/phaseanalysis")
 
 ###########################################################################
 # Loading session
