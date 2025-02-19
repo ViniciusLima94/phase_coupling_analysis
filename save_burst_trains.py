@@ -24,9 +24,8 @@ args = parser.parse_args()
 idx = args.SIDX
 at = args.ALIGN
 monkey = args.MONKEY
-band_id = args.BAND
-q_l = bool(args.QLOW)
-q_u = bool(args.QU)
+q_l = args.QLOW
+q_u = args.QUP
 
 session_number = get_dates(monkey)[idx]
 print(session_number)
@@ -35,6 +34,11 @@ print(session_number)
 DATA_PATH = os.path.expanduser(
     f"/home/vinicius/funcog/phaseanalysis/Results/{monkey}/{session_number}"
 )
+
+
+# Root directory
+_ROOT = os.path.expanduser("~/funcog/gda")
+_SAVE = os.path.expanduser("~/funcog/phaseanalysis")
 
 
 ###############################################################################
@@ -67,7 +71,7 @@ def _int(w, x_s, x_t, kw_para):
 
 
 def power_events_coincidence(
-    power, q_l, q_u=None, n_jobs=1, verbose=False, shuffle=False
+    power, q_l, q_u=None, n_jobs=10, verbose=False, shuffle=False
 ):
 
     # Extract dimensions
@@ -110,12 +114,45 @@ def power_events_coincidence(
 # Compute for each band
 ###############################################################################
 
+n_bands = len(freqs)
+
+pec, pec_shuffle = [], []
+
+# freqs = freqs[:3]
 
 for band, freq in enumerate(freqs):
+
+    print(f"Band {band + 1} of {n_bands} (f_c = {freq} Hz)")
 
     power_time_series = xr.load_dataarray(
         os.path.join(DATA_PATH, f"power_time_series_band_{band}_surr_False.nc")
     )
 
-    pec = power_events_coincidence(power_time_series, q_l, q_u)  # noqa
-    pec_shuffle = power_events_coincidence(power_time_series, q_l, q_u)  # noqa
+    pec += [
+        power_events_coincidence(power_time_series, q_l / 100, q_u / 100, verbose=False)
+    ]  # noqa
+    pec_shuffle += [
+        power_events_coincidence(
+            power_time_series, q_l / 100, q_u / 100, shuffle=True, verbose=False
+        )
+    ]  # noqa
+
+# Concat frequencies
+pec = xr.concat(pec, "freqs").assign_coords({"freqs": freqs})
+pec_shuffle = xr.concat(pec_shuffle, "freqs").assign_coords({"freqs": freqs})
+
+###########################################################################
+# Saves file
+###########################################################################
+
+# Path in which to save coherence data
+results_path = os.path.join(_SAVE, "Results", monkey, session_number)
+
+if not os.path.exists(results_path):
+    os.makedirs(results_path)
+
+file_name = f"burst_trains_band_{q_l}_{q_u}_surr_False.nc"
+pec.to_netcdf(os.path.join(results_path, file_name))
+
+file_name = f"burst_trains_band_{q_l}_{q_u}_surr_True.nc"
+pec_shuffle.to_netcdf(os.path.join(results_path, file_name))
