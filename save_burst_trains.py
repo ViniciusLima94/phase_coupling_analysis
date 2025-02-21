@@ -16,8 +16,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("SIDX", help="index of the session to be run", type=int)
 parser.add_argument("ALIGN", help="wheter to align data to cue or match", type=str)
 parser.add_argument("MONKEY", help="which monkey to use", type=str)
-parser.add_argument("QLOW", help="lower quantile used to threshold", type=float)
-parser.add_argument("QUP", help="upper quantile used to threshold", type=float)
+parser.add_argument("QLOW", help="lower quantile used to threshold", type=int)
+parser.add_argument("QUP", help="upper quantile used to threshold", type=int)
 args = parser.parse_args()
 
 # Index of the session to be load
@@ -114,6 +114,14 @@ def power_events_coincidence(
 # Compute for each band
 ###############################################################################
 
+
+# Path in which to save coherence data
+results_path = os.path.join(_SAVE, "Results", monkey, session_number)
+
+if not os.path.exists(results_path):
+    os.makedirs(results_path)
+
+
 n_bands = len(freqs)
 
 pec, pec_shuffle = [], []
@@ -124,35 +132,39 @@ for band, freq in enumerate(freqs):
 
     print(f"Band {band + 1} of {n_bands} (f_c = {freq} Hz)")
 
+    pec_file_name = f"burst_trains_band_{band}_{q_l}_{q_u}_surr_False.nc"
+    pec_shuffle_file_name = f"burst_trains_band_{band}_{q_l}_{q_u}_surr_True.nc"
+
     power_time_series = xr.load_dataarray(
         os.path.join(DATA_PATH, f"power_time_series_band_{band}_surr_False.nc")
     )
 
-    pec += [
-        power_events_coincidence(power_time_series, q_l / 100, q_u / 100, verbose=False)
-    ]  # noqa
-    pec_shuffle += [
-        power_events_coincidence(
-            power_time_series, q_l / 100, q_u / 100, shuffle=True, verbose=False
-        )
-    ]  # noqa
+    pec = power_events_coincidence(
+        power_time_series, q_l / 100, q_u / 100, verbose=False
+    )
+    pec_shuffle = power_events_coincidence(
+        power_time_series, q_l / 100, q_u / 100, shuffle=True, verbose=False
+    )
 
-# Concat frequencies
-pec = xr.concat(pec, "freqs").assign_coords({"freqs": freqs})
-pec_shuffle = xr.concat(pec_shuffle, "freqs").assign_coords({"freqs": freqs})
+    # print(pec.dims)
+    # print(pec.freqs)
+    # Concat frequencies
+    # pec = pec.assign_coords({"freqs": freq})
+    # pec_shuffle = pec_shuffle.assign_coords({"freqs": freq})
 
-###########################################################################
-# Saves file
-###########################################################################
+    ###########################################################################
+    # Saves file
+    ###########################################################################
 
-# Path in which to save coherence data
-results_path = os.path.join(_SAVE, "Results", monkey, session_number)
-
-if not os.path.exists(results_path):
-    os.makedirs(results_path)
-
-file_name = f"burst_trains_band_{q_l}_{q_u}_surr_False.nc"
-pec.to_netcdf(os.path.join(results_path, file_name))
-
-file_name = f"burst_trains_band_{q_l}_{q_u}_surr_True.nc"
-pec_shuffle.to_netcdf(os.path.join(results_path, file_name))
+    pec.to_netcdf(
+        os.path.join(results_path, pec_file_name),
+        # mode="a",
+        # unlimited_dims=["freqs"],
+        engine="h5netcdf",
+    )
+    pec_shuffle.to_netcdf(
+        os.path.join(results_path, pec_shuffle_file_name),
+        # mode="a",
+        # unlimited_dims=["freqs"],
+        engine="h5netcdf",
+    )
