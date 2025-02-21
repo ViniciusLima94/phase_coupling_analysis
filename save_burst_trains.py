@@ -18,6 +18,7 @@ parser.add_argument("ALIGN", help="wheter to align data to cue or match", type=s
 parser.add_argument("MONKEY", help="which monkey to use", type=str)
 parser.add_argument("QLOW", help="lower quantile used to threshold", type=int)
 parser.add_argument("QUP", help="upper quantile used to threshold", type=int)
+parser.add_argument("SURR", help="whether to use surrogate or not", type=int)
 args = parser.parse_args()
 
 # Index of the session to be load
@@ -26,6 +27,7 @@ at = args.ALIGN
 monkey = args.MONKEY
 q_l = args.QLOW
 q_u = args.QUP
+surrogate = bool(args.SURR)
 
 session_number = get_dates(monkey)[idx]
 print(session_number)
@@ -132,10 +134,10 @@ for band, freq in enumerate(freqs):
 
     print(f"Band {band + 1} of {n_bands} (f_c = {freq} Hz)")
 
-    pec_file_name = f"burst_trains_band_{band}_{q_l}_{q_u}_surr_False.nc"
+    pec_file_name = f"burst_trains_band_{band}_{q_l}_{q_u}_surr_{surrogate}.nc"
 
     power_time_series = xr.load_dataarray(
-        os.path.join(DATA_PATH, f"power_time_series_band_{band}_surr_False.nc")
+        os.path.join(DATA_PATH, f"power_time_series_band_{band}_surr_{surrogate}.nc")
     )
 
     pec = power_events_coincidence(

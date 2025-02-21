@@ -104,13 +104,37 @@ def create_generalized_surrogate(data, n_boot):
     return data_surr
 
 
+def resample_trials(X):
+    T, R, N = X.shape  # Extract dimensions
+    # Generate a shuffled set of trial indices for each row
+    sampled_trials = np.array([np.random.permutation(T) for _ in range(T)])
+
+    # Create the new array where each ROI gets data from a different trial
+    resampled_X = np.zeros((T, R, N))  # Placeholder for sampled data
+
+    for row in range(T):
+        trial_indices = sampled_trials[row]  # Get shuffled trials for this row
+        for roi in range(R):
+            resampled_X[row, roi, :] = X[trial_indices[roi], roi, :]
+
+    return resampled_X
+
+
 # Shuffle data if needed
 # if surrogate:
-n_boot = 100
-data_surr = [
-    create_generalized_surrogate(data, data.sizes["trials"])
-    for i in tqdm(range(n_boot))
-]
+# n_boot = 100
+# data_surr = [
+#    create_generalized_surrogate(data, data.sizes["trials"])
+#    for i in tqdm(range(n_boot))
+# ]
+
+
+data_surr = xr.DataArray(
+    resample_trials(data),
+    dims=("trials", "roi", "time"),
+    coords={"time": data.time.values},
+)
+
 # attrs = data.attrs
 # data_surr = data.values.copy()
 # data_surr = shuffle_along_axis(data_surr, 0)
@@ -218,23 +242,25 @@ phase_diff = phase_diff.transpose(*_dims)
 
 power_surr, phase_diff_surr = [], []
 
-for data_surr_ in tqdm(data_surr_filt):
-    # for s in range(epoch_data.sizes["epochs"]):
-    power_temp, _, phase_diff_temp = hilbert_decomposition(
-        data_surr_,
-        sfreq=data.fsample,
-        decim=1,
-        times="times",
-        roi="roi",
-        n_jobs=1,
-        verbose=False,
-    )
+# for data_surr_ in tqdm(data_surr_filt):
+# for s in range(epoch_data.sizes["epochs"]):
+power_surr, _, phase_diff_surr = hilbert_decomposition(
+    data_surr,
+    sfreq=data.fsample,
+    decim=1,
+    times="times",
+    roi="roi",
+    n_jobs=1,
+    verbose=False,
+)
 
-    power_surr += [power_temp.transpose(*_dims)]
-    phase_diff_surr += [phase_diff_temp.transpose(*_dims)]
+# power_surr += [power_temp.transpose(*_dims)]
+# phase_diff_surr += [phase_diff_temp.transpose(*_dims)]
 
-power_surr = xr.concat(power_surr, "boot")
-phase_diff_surr = xr.concat(phase_diff_surr, "boot")
+power_surr = power_surr.transpose(*_dims)  # xr.concat(power_surr, "boot")
+phase_diff_surr = phase_diff_surr.transpose(
+    *_dims
+)  # xr.concat(phase_diff_surr, "boot")
 
 
 ###########################################################################
