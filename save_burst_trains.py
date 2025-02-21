@@ -133,7 +133,6 @@ for band, freq in enumerate(freqs):
     print(f"Band {band + 1} of {n_bands} (f_c = {freq} Hz)")
 
     pec_file_name = f"burst_trains_band_{band}_{q_l}_{q_u}_surr_False.nc"
-    pec_shuffle_file_name = f"burst_trains_band_{band}_{q_l}_{q_u}_surr_True.nc"
 
     power_time_series = xr.load_dataarray(
         os.path.join(DATA_PATH, f"power_time_series_band_{band}_surr_False.nc")
@@ -142,15 +141,6 @@ for band, freq in enumerate(freqs):
     pec = power_events_coincidence(
         power_time_series, q_l / 100, q_u / 100, verbose=False
     )
-    pec_shuffle = power_events_coincidence(
-        power_time_series, q_l / 100, q_u / 100, shuffle=True, verbose=False
-    )
-
-    # print(pec.dims)
-    # print(pec.freqs)
-    # Concat frequencies
-    # pec = pec.assign_coords({"freqs": freq})
-    # pec_shuffle = pec_shuffle.assign_coords({"freqs": freq})
 
     ###########################################################################
     # Saves file
@@ -158,12 +148,6 @@ for band, freq in enumerate(freqs):
 
     pec.to_netcdf(
         os.path.join(results_path, pec_file_name),
-        # mode="a",
-        # unlimited_dims=["freqs"],
-        engine="h5netcdf",
-    )
-    pec_shuffle.to_netcdf(
-        os.path.join(results_path, pec_shuffle_file_name),
         # mode="a",
         # unlimited_dims=["freqs"],
         engine="h5netcdf",

@@ -52,16 +52,25 @@ _SAVE = os.path.expanduser("~/funcog/phaseanalysis")
 results_path = os.path.join(_SAVE, "Results", monkey, session_number)
 
 data_path = os.path.join(_SAVE, "Results", monkey, session_number)
+pec_file_name = f"phase_std_{q_l}_{q_u}_surr_{surr}.nc"
 
+coords = {}
+if surr:
+    axis = (0, 1)
+    dims = ("boot", "roi")
+    coords["boot"] = range(100)
+else:
+    axis = (1, 2)
+    dims = ("roi",)
+
+std = []
 
 for band, freq in enumerate(freqs):
 
     print(f"Band {band + 1} of {n_bands} (f_c = {freq} Hz)")
 
-    pec_file_name = f"phase_std_band_{band}_{q_l}_{q_u}_surr_{surr}.nc"
-
     pec = xr.load_dataarray(
-        os.path.join(data_path, f"burst_trains_band_{band}_{q_l}_{q_u}_surr_{surr}.nc")
+        os.path.join(data_path, f"burst_trains_band_{band}_{q_l}_{q_u}.nc")
     )
 
     # Load time series of phase differences for data and surrogate
@@ -80,14 +89,10 @@ for band, freq in enumerate(freqs):
         coords=phi_series.coords,
     )
 
-    size = (~(filtered_phi_series.squeeze().isnull())).sum(("times", "trials"))
-
-    phi_max = np.sqrt(np.log(size))
-
     std = np.stack(
         [
             scipy.stats.circstd(
-                filtered_phi_series.isel(roi=i, freqs=0), axis=(0, 1), nan_policy="omit"
+                filtered_phi_series.isel(roi=i, freqs=0), axis=axis, nan_policy="omit"
             )
             for i in range(filtered_phi_series.sizes["roi"])
         ]
@@ -95,20 +100,20 @@ for band, freq in enumerate(freqs):
 
     # std = scipy.stats.circstd(filtered_phi_series, axis=(0, 3), nan_policy="omit")
 
-    std = xr.DataArray(std, dims=("roi"), coords=(pec.roi.values,))
-
-    # phi = 1 - std / phi_max
-    # phi_shuffle = 1 - std_shuffle / phi_max_shuffle
-
-    ###########################################################################
-    # Saves file
-    ###########################################################################
-
-    std.to_netcdf(
-        os.path.join(results_path, pec_file_name),
-        # mode="a",
-        # unlimited_dims=["freqs"],
-        engine="h5netcdf",
-    )
+    coords["roi"] = pec.roi.values
+    std += [xr.DataArray(std, dims=dims, coords=coords)]
 
     del pec, phi_series
+
+std = xr.concat(std, "freqs").assign_coords({"freqs": freqs})
+
+###########################################################################
+# Saves file
+###########################################################################
+
+std.to_netcdf(
+    os.path.join(results_path, pec_file_name),
+    # mode="a",
+    # unlimited_dims=["freqs"],
+    engine="h5netcdf",
+)
