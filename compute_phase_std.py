@@ -70,7 +70,7 @@ for band, freq in enumerate(freqs):
     print(f"Band {band + 1} of {n_bands} (f_c = {freq} Hz)")
 
     pec = xr.load_dataarray(
-        os.path.join(data_path, f"burst_trains_band_{band}_{q_l}_{q_u}.nc")
+        os.path.join(data_path, f"burst_trains_band_{band}_{q_l}_{q_u}_surr_False.nc")
     )
 
     # Load time series of phase differences for data and surrogate
@@ -82,26 +82,57 @@ for band, freq in enumerate(freqs):
 
     print(phi_series.dtype)
 
-    # Get phase only for coincident events
-    filtered_phi_series = xr.DataArray(
-        np.where(~pec, np.nan, phi_series),
-        dims=phi_series.dims,
-        coords=phi_series.coords,
-    )
+    if surr:
 
-    std = np.stack(
-        [
-            scipy.stats.circstd(
-                filtered_phi_series.isel(roi=i, freqs=0), axis=axis, nan_policy="omit"
-            )
-            for i in range(filtered_phi_series.sizes["roi"])
-        ]
-    )
+        # Get phase only for coincident events
+        filtered_phi_series = xr.DataArray(
+            np.where(~pec, np.nan, phi_series),
+            dims=phi_series.dims,
+        )
 
-    # std = scipy.stats.circstd(filtered_phi_series, axis=(0, 3), nan_policy="omit")
+        print(filtered_phi_series.shape)
+        print(filtered_phi_series.dims)
 
-    coords["roi"] = pec.roi.values
-    std += [xr.DataArray(std, dims=dims, coords=coords)]
+        out = np.stack(
+            [
+                scipy.stats.circstd(
+                    filtered_phi_series.isel(roi=i, freqs=0),
+                    axis=(0, 1),
+                    nan_policy="omit",
+                )
+                for i in range(filtered_phi_series.sizes["roi"])
+            ]
+        )
+
+        print(out.shape)
+
+        # std = scipy.stats.circstd(filtered_phi_series, axis=(0, 3), nan_policy="omit")
+
+        # std_temp += [xr.DataArray(out, dims=("roi",), coords=(pec.roi.values,))]
+        std += [xr.DataArray(std, dims=("roi",))]
+
+        # std += [xr.concat(std_temp, "boot")]
+
+    else:
+        # Get phase only for coincident events
+        filtered_phi_series = xr.DataArray(
+            np.where(~pec, np.nan, phi_series),
+            dims=phi_series.dims,
+            coords=phi_series.coords,
+        )
+
+        std = np.stack(
+            [
+                scipy.stats.circstd(
+                    filtered_phi_series.isel(roi=i, freqs=0),
+                    axis=(0, 1),
+                    nan_policy="omit",
+                )
+                for i in range(filtered_phi_series.sizes["roi"])
+            ]
+        )
+
+        std += [xr.DataArray(std, dims=("roi",), coords=(pec.roi.values,))]
 
     del pec, phi_series
 

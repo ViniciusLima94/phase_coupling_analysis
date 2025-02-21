@@ -216,11 +216,11 @@ phase_diff = phase_diff.transpose(*_dims)
 
 # For the surrogate save only the phase differences
 
-phase_diff_surr = []
+power_surr, phase_diff_surr = [], []
 
 for data_surr_ in tqdm(data_surr_filt):
     # for s in range(epoch_data.sizes["epochs"]):
-    _, _, temp = hilbert_decomposition(
+    power_temp, _, phase_diff_temp = hilbert_decomposition(
         data_surr_,
         sfreq=data.fsample,
         decim=1,
@@ -230,8 +230,10 @@ for data_surr_ in tqdm(data_surr_filt):
         verbose=False,
     )
 
-    phase_diff_surr += [temp.transpose(*_dims)]
+    power_surr += [power_temp.transpose(*_dims)]
+    phase_diff_surr += [phase_diff_temp.transpose(*_dims)]
 
+power_surr = xr.concat(power_surr, "boot")
 phase_diff_surr = xr.concat(phase_diff_surr, "boot")
 
 
@@ -256,6 +258,10 @@ phase.to_netcdf(path_pow)
 file_name = f"phase_difference_time_series_band_{band_id}_surr_False.nc"
 path_pow = os.path.join(results_path, file_name)
 phase_diff.to_netcdf(path_pow)
+
+file_name = f"power_time_series_band_{band_id}_surr_True.nc"
+path_pow = os.path.join(results_path, file_name)
+power_surr.to_netcdf(path_pow)
 
 file_name = f"phase_difference_time_series_band_{band_id}_surr_True.nc"
 path_pow = os.path.join(results_path, file_name)
