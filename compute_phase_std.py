@@ -84,9 +84,18 @@ for band, freq in enumerate(freqs):
 
     phi_max = np.sqrt(np.log(size))
 
-    std = scipy.stats.circstd(filtered_phi_series, axis=(0, 3), nan_policy="omit")
+    std = np.stack(
+        [
+            scipy.stats.circstd(
+                filtered_phi_series.isel(roi=i, freqs=0), axis=(0, 1), nan_policy="omit"
+            )
+            for i in range(filtered_phi_series.sizes["roi"])
+        ]
+    )
 
-    std = xr.DataArray(std, dims=("roi", "freqs"), coords=(pec.roi.values, freq))
+    # std = scipy.stats.circstd(filtered_phi_series, axis=(0, 3), nan_policy="omit")
+
+    std = xr.DataArray(std, dims=("roi"), coords=(pec.roi.values,))
 
     # phi = 1 - std / phi_max
     # phi_shuffle = 1 - std_shuffle / phi_max_shuffle

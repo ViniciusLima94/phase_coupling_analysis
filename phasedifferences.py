@@ -96,8 +96,10 @@ def create_generalized_surrogate(data, n_boot):
     data_surr = np.stack(data_surr)
 
     data_surr = xr.DataArray(
-        data_surr, dims=("trials", "roi", "times"), coords={"times": data.time.values}
+        data_surr, dims=data.dims, coords={"time": data.time.values}
     )
+
+    data_surr.attrs["fsample"] = data.attrs["fsample"]
 
     return data_surr
 
@@ -106,7 +108,8 @@ def create_generalized_surrogate(data, n_boot):
 # if surrogate:
 n_boot = 100
 data_surr = [
-    create_generalized_surrogate(data, data.sizes["trials"]) for i in range(n_boot)
+    create_generalized_surrogate(data, data.sizes["trials"])
+    for i in tqdm(range(n_boot))
 ]
 # attrs = data.attrs
 # data_surr = data.values.copy()
@@ -167,8 +170,6 @@ def get_filtered_data(data, bands, band_id):
 
     temp = filter_data(data.values, data.fsample, f_l, f_h, n_jobs=10, verbose=False)
     temp = np.expand_dims(temp, 2)
-    print(temp.shape)
-    print(freqs)
 
     data = xr.DataArray(
         temp,
