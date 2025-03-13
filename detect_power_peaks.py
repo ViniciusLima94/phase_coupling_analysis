@@ -166,9 +166,6 @@ has_peaks_pairs = xr.DataArray(
 # Concatenate peak freq and prominences for each epoch
 ###########################################################################
 
-freqs_array = xr.concat(freqs_array, "epochs")
-prominences_array = xr.concat(prominences_array, "epochs")
-
 peak_freqs = np.zeros((5, len(unique_rois)))
 
 for i in range(5):
