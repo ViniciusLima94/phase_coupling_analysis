@@ -87,7 +87,7 @@ for i in range(epoch_data.sizes["epochs"]):
     sxx += [xr.concat(sxx_stim, "stim")]
 
 sxx = xr.concat(sxx, "epochs")
-sxx.attrs = epoch_data.attrs
+sxx.attrs = data.attrs
 
 ###########################################################################
 # Saves file

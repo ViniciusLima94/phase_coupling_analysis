@@ -170,8 +170,11 @@ peak_freqs = np.zeros((5, len(unique_rois)))
 
 for i in range(5):
     for j, roi_ in enumerate(unique_rois):
-        index = prominences_array[i].sel(roi=roi_).argmax()[0]
-        peak_freqs[i, j] = freqs_array[i].sel(roi=roi_).values[index]
+        try:
+            index = int(prominences_array[i].sel(roi=roi_).argmax())
+            peak_freqs[i, j] = np.atleast_1d(freqs_array[i].sel(roi=roi_).values)[index]
+        except:
+            peak_freqs[i, j] = -1
 
 peak_freqs = xr.DataArray(
     peak_freqs, dims=("epochs", "roi"), coords={"roi": unique_rois}
