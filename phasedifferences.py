@@ -5,7 +5,6 @@ import xarray as xr
 
 from src.metrics.phase import hilbert_decomposition
 from src.util import get_dates
-from tqdm import tqdm
 from util import load_session_data
 from mne.filter import filter_data
 from config import bands, freqs
@@ -32,7 +31,7 @@ band_id = args.BAND
 # surrogate = bool(args.SURR)
 
 session_number = get_dates(monkey)[idx]
-print(session_number)
+print(f"{session_number} - band {freqs[band_id]} Hz")
 
 # Root directory
 _ROOT = os.path.expanduser("~/funcog/gda")
@@ -132,8 +131,10 @@ def resample_trials(X):
 data_surr = xr.DataArray(
     resample_trials(data),
     dims=("trials", "roi", "time"),
-    coords={"time": data.time.values},
+    coords={"time": data.time.values, "roi": data.roi.values},
 )
+
+data_surr.attrs["fsample"] = data.attrs["fsample"]
 
 # attrs = data.attrs
 # data_surr = data.values.copy()
@@ -214,9 +215,7 @@ def get_filtered_data(data, bands, band_id):
 # Original data
 data = get_filtered_data(data, bands, band_id)
 # Surrogates
-data_surr_filt = [
-    get_filtered_data(data_surr_, bands, band_id) for data_surr_ in tqdm(data_surr)
-]
+data_surr_filt = get_filtered_data(data_surr, bands, band_id)
 
 
 _dims = ("trials", "roi", "freqs", "times")
@@ -231,7 +230,7 @@ power, phase, phase_diff = hilbert_decomposition(
     times="times",
     roi="roi",
     n_jobs=10,
-    verbose=None,
+    verbose=True,
 )
 
 power = power.transpose(*_dims)
@@ -245,13 +244,13 @@ power_surr, phase_diff_surr = [], []
 # for data_surr_ in tqdm(data_surr_filt):
 # for s in range(epoch_data.sizes["epochs"]):
 power_surr, _, phase_diff_surr = hilbert_decomposition(
-    data_surr,
+    data_surr_filt,
     sfreq=data.fsample,
     decim=1,
     times="times",
     roi="roi",
     n_jobs=1,
-    verbose=False,
+    verbose=True,
 )
 
 # power_surr += [power_temp.transpose(*_dims)]

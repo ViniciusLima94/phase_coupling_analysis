@@ -6,6 +6,7 @@ import scipy
 
 from src.util import get_dates
 from config import freqs
+from tqdm import tqdm
 
 ###############################################################################
 # Argument parsing
@@ -17,7 +18,7 @@ parser.add_argument("ALIGN", help="wheter to align data to cue or match", type=s
 parser.add_argument("MONKEY", help="which monkey to use", type=str)
 parser.add_argument("QLOW", help="lower quantile used to threshold", type=int)
 parser.add_argument("QUP", help="upper quantile used to threshold", type=int)
-parser.add_argument("SURR", help="upper quantile used to threshold", type=int)
+parser.add_argument("SURR", help="whether to use the surrogate data", type=int)
 args = parser.parse_args()
 
 # Index of the session to be load
@@ -54,16 +55,11 @@ results_path = os.path.join(_SAVE, "Results", monkey, session_number)
 data_path = os.path.join(_SAVE, "Results", monkey, session_number)
 pec_file_name = f"phase_std_{q_l}_{q_u}_surr_{surr}.nc"
 
-coords = {}
-if surr:
-    axis = (0, 1)
-    dims = ("boot", "roi")
-    coords["boot"] = range(100)
-else:
-    axis = (1, 2)
-    dims = ("roi",)
-
 std = []
+if surr:
+    std_cl = []
+
+quantiles = [0.05, 0.5, 0.95]
 
 for band, freq in enumerate(freqs):
 
@@ -80,8 +76,6 @@ for band, freq in enumerate(freqs):
         )
     )
 
-    print(phi_series.dtype)
-
     # Get phase only for coincident events
     filtered_phi_series = xr.DataArray(
         np.where(~pec, np.nan, phi_series),
@@ -92,35 +86,44 @@ for band, freq in enumerate(freqs):
     print(filtered_phi_series.shape)
     print(filtered_phi_series.dims)
 
-    out = np.stack(
+    std = np.stack(
         [
             scipy.stats.circstd(
                 filtered_phi_series.isel(roi=i, freqs=0),
                 axis=(0, 1),
                 nan_policy="omit",
             )
-            for i in range(filtered_phi_series.sizes["roi"])
+            for i in tqdm(range(filtered_phi_series.sizes["roi"]))
         ]
     )
 
-    print(out.shape)
+    # print(out.shape)
 
     # std = scipy.stats.circstd(filtered_phi_series, axis=(0, 3), nan_policy="omit")
 
     # std_temp += [xr.DataArray(out, dims=("roi",), coords=(pec.roi.values,))]
-    std += [xr.DataArray(std, dims=("roi",), coords=(pec.roi.values,))]
+    std = xr.DataArray(std, dims=("roi",), coords=(pec.roi.values,))
+
+    if surr:
+        temp_cl = []
+        for q in quantiles:
+            temp_cl += [std.quantile(q, dim="roi")]
+        std = xr.concat(temp_cl, "quantiles")
+
+    ###########################################################################
+    # Saves file
+    ###########################################################################
+    pec_file_name_cl = f"phase_std_chance_level_band_{band}_{q_l}_{q_u}_surr_{surr}.nc"
+    std.to_netcdf(
+        os.path.join(results_path, pec_file_name_cl),
+        # mode="a",
+        # unlimited_dims=["freqs"],
+        engine="h5netcdf",
+    )
 
     del pec, phi_series
 
-std = xr.concat(std, "freqs").assign_coords({"freqs": freqs})
-
-###########################################################################
-# Saves file
-###########################################################################
-
-std.to_netcdf(
-    os.path.join(results_path, pec_file_name),
-    # mode="a",
-    # unlimited_dims=["freqs"],
-    engine="h5netcdf",
-)
+# std = xr.concat(std, "freqs").assign_coords({"freqs": freqs})
+#
+# if surr:
+#    std_cl = xr.concat(std_cl, "freqs").assign_coords({"freqs": freqs})

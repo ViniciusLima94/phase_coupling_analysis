@@ -1,5 +1,4 @@
-import os
-import argparse
+import os import argparse
 import numpy as np
 import xarray as xr
 
@@ -29,6 +28,7 @@ print(session_number)
 # Root directory
 _ROOT = os.path.expanduser("~/funcog/gda")
 _SAVE = os.path.expanduser("~/funcog/phaseanalysis")
+
 
 ###############################################################################
 # Functions
@@ -85,7 +85,7 @@ def check_peaks(peak_freqs, peak_prominences, rois):
         name="peak_prom",
     )
 
-    return has_peak
+    return has_peak, peak_freqs, peak_prominences
 
 
 ###############################################################################
@@ -105,15 +105,15 @@ bands = {
     "beta_1": [14, 26],
     "beta_2": [26, 43],
     "gamma": [43, 80],
-}
-
-###############################################################################
+} ###############################################################################
 # Find spectral peaks
 ###############################################################################
 # Remove fixation trials
 average_power_epochs = average_power_epochs.isel(stim=slice(0, 5)).mean("stim")
 
 average_power_norm = average_power_epochs / average_power_epochs.max("freqs")
+
+unique_rois = average_power_norm.roi.values
 
 peak_freqs, peak_prominences, rois = [], [], []
 
@@ -125,8 +125,15 @@ for average_power_norm_ in average_power_norm:
 
 # Do it for each epoch
 has_peaks = []
+freqs_array = []
+prominences_array = []
+
 for i in range(5):
-    has_peaks += [check_peaks(peak_freqs[i], peak_prominences[i], rois[i])]
+    out = check_peaks(peak_freqs[i], peak_prominences[i], rois[i])
+    has_peaks += [out[0]]
+    freqs_array += [out[1]]
+    prominences_array += [out[2]]
+
 
 has_peaks = xr.DataArray(
     np.stack(has_peaks, axis=1).squeeze(),
@@ -155,6 +162,21 @@ has_peaks_pairs = xr.DataArray(
 
 
 ###########################################################################
+# Concatenate peak freq and prominences for each epoch
+###########################################################################
+
+freqs_array = xr.concat(freqs_array, "epochs")
+prominences_array = xr.concat(prominences_array, "epochs")
+
+peak_freqs = np.zeros((5, len(unique_rois))) 
+
+for i in range(5):
+    for j, roi_ in enumerate(unique_rois):
+        index = prominences_array[i].sel(roi=roi_).argmax()[0]
+
+
+
+###########################################################################
 # Saves file
 ###########################################################################
 
@@ -167,6 +189,14 @@ if not os.path.exists(results_path):
 file_name = "has_peak.nc"
 path_has_peaks = os.path.join(results_path, file_name)
 has_peaks.to_netcdf(path_has_peaks)
+
+file_name = "peak_freqs.nc"
+path_has_peaks = os.path.join(results_path, file_name)
+freqs_array.to_netcdf(path_has_peaks)
+
+file_name = "peak_prominences.nc"
+path_has_peaks = os.path.join(results_path, file_name)
+prominences_array.to_netcdf(path_has_peaks)
 
 file_name = "has_peaks_pairs.nc"
 path_has_peaks_pairs = os.path.join(results_path, file_name)
