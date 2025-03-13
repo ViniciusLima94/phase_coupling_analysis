@@ -1,4 +1,5 @@
-import os import argparse
+import os
+import argparse
 import numpy as np
 import xarray as xr
 
@@ -105,7 +106,7 @@ bands = {
     "beta_1": [14, 26],
     "beta_2": [26, 43],
     "gamma": [43, 80],
-} ###############################################################################
+}  ###############################################################################
 # Find spectral peaks
 ###############################################################################
 # Remove fixation trials
@@ -168,12 +169,16 @@ has_peaks_pairs = xr.DataArray(
 freqs_array = xr.concat(freqs_array, "epochs")
 prominences_array = xr.concat(prominences_array, "epochs")
 
-peak_freqs = np.zeros((5, len(unique_rois))) 
+peak_freqs = np.zeros((5, len(unique_rois)))
 
 for i in range(5):
     for j, roi_ in enumerate(unique_rois):
         index = prominences_array[i].sel(roi=roi_).argmax()[0]
+        peak_freqs[i, j] = freqs_array[i].sel(roi=roi_).values[index]
 
+peak_freqs = xr.DataArray(
+    peak_freqs, dims=("epochs", "roi"), coords={"roi": unique_rois}
+)
 
 
 ###########################################################################
@@ -192,11 +197,7 @@ has_peaks.to_netcdf(path_has_peaks)
 
 file_name = "peak_freqs.nc"
 path_has_peaks = os.path.join(results_path, file_name)
-freqs_array.to_netcdf(path_has_peaks)
-
-file_name = "peak_prominences.nc"
-path_has_peaks = os.path.join(results_path, file_name)
-prominences_array.to_netcdf(path_has_peaks)
+peak_freqs.to_netcdf(path_has_peaks)
 
 file_name = "has_peaks_pairs.nc"
 path_has_peaks_pairs = os.path.join(results_path, file_name)
