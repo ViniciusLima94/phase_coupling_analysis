@@ -97,11 +97,6 @@ for band, freq in enumerate(freqs):
         ]
     )
 
-    # print(out.shape)
-
-    # std = scipy.stats.circstd(filtered_phi_series, axis=(0, 3), nan_policy="omit")
-
-    # std_temp += [xr.DataArray(out, dims=("roi",), coords=(pec.roi.values,))]
     std = xr.DataArray(std, dims=("roi",), coords=(pec.roi.values,))
 
     if surr:
@@ -121,7 +116,7 @@ for band, freq in enumerate(freqs):
         engine="h5netcdf",
     )
 
-    del pec, phi_series
+    del pec, phi_series, std
 
 # std = xr.concat(std, "freqs").assign_coords({"freqs": freqs})
 #
