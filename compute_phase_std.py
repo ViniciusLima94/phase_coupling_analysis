@@ -75,6 +75,7 @@ for band, freq in enumerate(freqs):
             DATA_PATH, f"phase_difference_time_series_band_{band}_surr_{surr}.nc"
         )
     )
+    print(phi_series.dtype)
 
     # Get phase only for coincident events
     filtered_phi_series = xr.DataArray(
@@ -82,6 +83,8 @@ for band, freq in enumerate(freqs):
         dims=phi_series.dims,
         coords=phi_series.coords,
     )
+
+    del pec, phi_series
 
     print(filtered_phi_series.shape)
     print(filtered_phi_series.dims)
@@ -97,7 +100,7 @@ for band, freq in enumerate(freqs):
         ]
     )
 
-    std = xr.DataArray(std, dims=("roi",), coords=(pec.roi.values,))
+    std = xr.DataArray(std, dims=("roi",), coords=(filtered_phi_series.roi.values,))
 
     if surr:
         temp_cl = []
@@ -108,17 +111,10 @@ for band, freq in enumerate(freqs):
     ###########################################################################
     # Saves file
     ###########################################################################
-    pec_file_name_cl = f"phase_std_chance_level_band_{band}_{q_l}_{q_u}_surr_{surr}.nc"
+    pec_file_name_cl = f"phase_std_band_{band}_{q_l}_{q_u}_surr_{surr}.nc"
     std.to_netcdf(
         os.path.join(results_path, pec_file_name_cl),
-        # mode="a",
-        # unlimited_dims=["freqs"],
         engine="h5netcdf",
     )
 
-    del pec, phi_series, std
-
-# std = xr.concat(std, "freqs").assign_coords({"freqs": freqs})
-#
-# if surr:
-#    std_cl = xr.concat(std_cl, "freqs").assign_coords({"freqs": freqs})
+    del std
