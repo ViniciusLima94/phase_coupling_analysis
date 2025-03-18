@@ -55,7 +55,6 @@ def conn_spec_average(
     fmax=None,
     roi=None,
     sfreq=None,
-    n_cycles=7.0,
     bandwidth=None,
     decim=1,
     kw_mt={},
@@ -110,7 +109,7 @@ def conn_spec_average(
     # time-frequency decomposition
     w, f_vec, _ = psd_array_multitaper(
         x[..., ::decim],
-        sfreq,
+        sfreq // decim,
         fmin=fmin,
         fmax=fmax,
         n_jobs=n_jobs,
@@ -127,7 +126,6 @@ def conn_spec_average(
     # configuration
     cfg = dict(
         sfreq=sfreq,
-        n_cycles=n_cycles,
         mt_bandwidth=bandwidth,
         decim=decim,
     )
@@ -136,7 +134,7 @@ def conn_spec_average(
     conn = xr.DataArray(
         conn, dims=dims, name="coh", coords=coords, attrs=check_attrs({**attrs, **cfg})
     )
-    return conn
+    return conn.astype(dtype)
 
 
 def _phase_diff(w, x_s, x_t, kw_para):
